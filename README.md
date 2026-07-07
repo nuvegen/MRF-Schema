@@ -13,6 +13,7 @@ This repository contains the official specification as well as a reference parse
 * **[Specification (record_model_definition_v1.md)](record_model_definition_v1.md)**: The core document containing the full definition of the format, canonical rules, standard types, and the formal EBNF grammar.
 * **[Reference Parser (mrf_parser.py)](mrf_parser.py)**: A runnable implementation of a recursive-descent parser that validates MRF files against the EBNF grammar. *(Note: This file was created with AI assistance).*
 * **[Parser Test Suite (test_mrf.py)](test_mrf.py)**: A collection of test cases that verifies all valid and invalid examples from the specification. *(Note: This file was created with AI assistance).*
+* **[LICENSE](LICENSE)**: View the full [License terms](LICENSE) for this project.
 
 ---
 
