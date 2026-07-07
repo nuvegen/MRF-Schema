@@ -62,13 +62,13 @@ type Wheel (
 )
 '''
 
-# 4. Array of DictionaryItem
+# 4. Array of DictionaryItem (bracket-delimited literal, marker on assignment)
 CASES["array_dictionary"] = r'''
 record (
-    myList[]:DictionaryItem = (
+    myList[]:DictionaryItem = [
         (key="A" value="Ananas")
         (key="B" value="Banana")
-    )
+    ]
 )
 '''
 
@@ -117,7 +117,8 @@ record jane: Person(
 )
 '''
 
-# 9. Nested inline record value + array + ref together
+# 9. Nested inline record value + array + ref together.
+#    Array has NO field marker here -> tests that "[" alone drives array detection.
 CASES["mixed_values"] = r'''
 type Order (
     id: String( required=true )
@@ -129,8 +130,19 @@ record c1 ( name="Alex" )
 
 record ( 
     id="X1"
-    items[] = ( (sku="A" qty=2) (sku="B" qty=1) )
+    items = [ (sku="A" qty=2) (sku="B" qty=1) ]
     customer = c1
+)
+'''
+
+# 9b. Array of scalars and array of references
+CASES["scalar_and_ref_arrays"] = r'''
+record red ( hex="#ff0000" )
+
+record palette (
+    tags   = [ "warm" "primary" ]
+    colors = [ red red ]
+    empty  = [ ]
 )
 '''
 
