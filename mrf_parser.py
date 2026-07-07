@@ -208,25 +208,25 @@ class Parser:
     # -- FieldAssign ::= Id ArrayMarker? (":" TypeId)? "=" Value -----------
     def fieldassign(self):
         name = self.eat("IDENT").val
-        arr = self.array_marker()
+        arr = self.array_marker()       # optional; documents list type, not needed for parsing
         typ = None
         if self.at("COLON"):
             self.eat("COLON")
             typ = self.eat("IDENT").val
         self.eat("EQ")
-        val = self.value(is_array=arr)
+        val = self.value()
         return ("assign", name, arr, typ, val)
 
-    # -- Value  (array-ness declared on the field, disambiguates) ----------
-    #    array : "(" { Element } ")" ; Element ::= InlineRecord|RecordRef|Scalar
-    #    single: Scalar | RecordRef | InlineRecord
-    def value(self, is_array: bool):
-        if is_array:
-            self.eat("LPAREN")
+    # -- Value  (array literals are bracket-delimited -> self-disambiguating) --
+    #    ArrayValue ::= "[" { Element } "]"
+    #    SingleValue::= Element
+    def value(self):
+        if self.at("LBRACK"):                       # array literal [ ... ]
+            self.eat("LBRACK")
             elems = []
-            while not self.at("RPAREN"):
+            while not self.at("RBRACK"):
                 elems.append(self.element())
-            self.eat("RPAREN")
+            self.eat("RBRACK")
             return ("array", elems)
         return self.element()
 
