@@ -1,45 +1,33 @@
----
-title: "Model Record Format (MRF) Specification"
-version: "1.0.0"
-description: "Ein typisiertes, strukturiertes Datenformat mit C-ähnlicher Syntax, das Datenmodelle und Schemas direkt in einer Datei vereint – optimiert für Lesbarkeit, Validierung und KI-Kontexte."
-author: "Alexander Ramm (github.com/nuvegen)"
-copyright: "Copyright (c) 2026 [Dein Name oder GitHub-Username]. Alle Rechte vorbehalten."
-license: "Apache-2.0"
-license_url: "https://www.apache.org/licenses/LICENSE-2.0"
-keywords:
-  - mrf
-  - data-format
-  - schema-definition
-  - serialization
-  - ai-training-data
----
+# Model-Record-Format (MRF)
 
-# odel Record Format (MRF) Specification
+*A typed, C-flavoured data format that keeps schema and data in a single file.*
 
-Es braucht doch nicht noch ein weiteres Datenformat – schließlich haben wir bereits JSON, XML, TOML und viele weitere.
+The world hardly needs yet another data format — we already have JSON, XML, TOML, and many more. Model-Record-Format grew out of a concrete need, though:
 
-Das *Model-Record-Format* ist jedoch aus einem konkreten Bedarf heraus entstanden:
+- **JSON** becomes hard to read for more complex structures.
+- **TOML** is fairly limited in expressiveness (flat configuration rather than deep nesting).
+- And none of these formats keeps **schema and data in one file** — validation rules always live externally (e.g. in a separate JSON Schema).
 
-- **JSON** wird bei komplexeren Strukturen schnell unübersichtlich.
-- **TOML** ist in seinen Ausdrucksmöglichkeiten eher eingeschränkt (flache Konfiguration statt tiefer Verschachtelung).
-- Und keines dieser Formate legt **Schema und Daten in einer Datei** zusammen — Validierungsregeln leben stets extern (etwa in einem separaten JSON-Schema).
+The format deliberately takes its cues from **C**: it is clearly structured, typed, and designed to be both readable and easy to validate.
 
-Das neue Format orientiert sich bewusst am **C-Standard**: es ist klar strukturiert, typisiert und darauf ausgelegt, sowohl lesbar als auch leicht validierbar zu sein.
-
-> **Version:** v1 (konsolidiert) · **Status:** in sich konsistent, referenz-validiert
+> **Version:** v1 (consolidated) · **Status:** internally consistent, reference-validated
 >
-> **Änderungen ggü. Erst-Entwurf:** Attribut-Syntax vereinheitlicht (Attribute stehen
-> **in** den Typ-Klammern); anonyme Typen, Arrays und Record-Referenzen sind nun
-> grammatisch abgedeckt; Record-Name **und** -Typ sind optional; Kommentare in der
-> Grammatik verankert; **ein** Typ-Vokabular (`String, Int, Decimal, Boolean, Any,
-> DictionaryItem` — kein `Number`/`min`/`max` mehr); Attribut-Tabellen korrigiert
-> (`minValue`/`maxValue` gehören zu `Int`/`Decimal`, nicht zu `String`); Tippfehler
-> bereinigt. Die EBNF (§EBNF) ist gegen einen Referenz-Parser geprüft, der alle
-> vollständigen Beispiele dieses Dokuments akzeptiert.
+> **Changes since the initial draft:** attribute syntax unified (attributes live
+> **inside** the type's parentheses); anonymous types, arrays and record references are
+> now covered by the grammar; a record's name **and** type are optional; comments are
+> anchored in the grammar; a single type vocabulary (`String, Int, Decimal, Boolean,
+> Any, DictionaryItem` — no more `Number`/`min`/`max`); attribute tables corrected
+> (`minValue`/`maxValue` belong to `Int`/`Decimal`, not `String`); typos fixed. The
+> grammar (see [EBNF Grammar](#ebnf-grammar)) is checked against a reference parser
+> that accepts every complete example in this document.
+>
+> **Change in this revision:** array/list values are now written with square brackets
+> `[ … ]` (instead of `( … )`), making them clearly distinct from inline records
+> `( … )`.
 
 ## Model Record Definition
 
-Das **Model-Record-Format (MRF)** ist ein typisiertes, strukturiertes Datenformat, das speziell für die handhabbare Speicherung und Validierung komplexer Datenmodelle entwickelt wurde. Im Gegensatz zu JSON oder TOML bietet MRF eine klare, C-ähnliche Syntax, explizite Datentypen und die Möglichkeit, Schemas direkt in den Daten zu definieren. Dadurch kombiniert MRF **Lesbarkeit, Ausdrucksstärke und Werkzeugunterstützung** in einem einheitlichen Format und erleichtert sowohl die manuelle Bearbeitung als auch automatisierte Verarbeitung und Codegenerierung.
+The **Model-Record-Format (MRF)** is a typed, structured data format built for the manageable storage and validation of complex data models. Unlike JSON or TOML, MRF offers a clear, C-like syntax, explicit data types, and the ability to define schemas directly alongside the data. It thus combines **readability, expressiveness and tooling support** in a single format, easing both manual editing and automated processing and code generation.
 
 ```mrf
 using "https://w3-isp.net/mrf/types.mrf"
@@ -73,15 +61,15 @@ record BMW5er:Car (
 )
 ```
 
-Eine Datei kann entweder eines oder beides enthalten (Model-Definition oder Record-Definition).
+A file may contain either one or both (a model definition or a record definition).
 
-Eine **Modeldefinition** wird mit
+A **model definition** is written as:
 
 ```text
 type <name> ( ... )
 ```
 
-beschrieben. Innerhalb eines Models kann auf andere Models verwiesen werden:
+Within a model, other models can be referenced:
 
 ```mrf
 type Car (
@@ -89,13 +77,13 @@ type Car (
 )
 ```
 
-Ein **Record** wird mit
+A **record** is written as:
 
 ```text
 record <name?>:<model?> ( ... )
 ```
 
-beschrieben, wobei sowohl `<name>` als auch `<model>` **optional** sind. Zulässig sind also: benannt-und-getypt (`record audi:Car`), nur benannt (`record opel`), nur getypt (`record :Car`) und anonym (`record`). Innerhalb eines Records kann auf andere Records verwiesen werden:
+where both `<name>` and `<model>` are **optional**. The following are therefore all valid: named-and-typed (`record audi:Car`), name only (`record opel`), type only (`record :Car`), and anonymous (`record`). Within a record, other records can be referenced:
 
 ```mrf
 record audi:Car (
@@ -128,24 +116,24 @@ record car (
 
 ## Model
 
-### Typisiert und anonym
+### Typed and anonymous
 
-Typen können typisiert oder anonym verwendet werden.
+Types may be used either typed or anonymously.
 
-> **Typisiert:**
+> **Typed:**
 >
 > `brand: String()`
 > `tires: Tire()`
 
-> **Anonym:**
+> **Anonymous:**
 >
 > `tires: ( maxTemp: Int() minTemp: Int() snow: Int() rain: Int() dry: Int() )`
 
-Ein anonymer Typ kann — falls er selbst Attribute tragen soll — nach dem Feld-Block ein zweites Klammernpaar mit Attributen führen (siehe `motor` oben: `( … ) ( required=true )`). Bei **benannten** Typen stehen Attribute dagegen direkt in den Typ-Klammern (`String( required=true )`).
+An anonymous type may — if it needs attributes of its own — carry a second pair of parentheses with attributes after its field block (see `motor` above: `( … ) ( required=true )`). For **named** types, attributes go directly inside the type's parentheses (`String( required=true )`).
 
-### Standard-Typen und Attribute
+### Standard types and attributes
 
-Mittels Attributen kann das Feld näher beschrieben werden. Diese stehen in Klammern nach dem Typ:
+Attributes further describe a field. They appear in parentheses after the type:
 
 ```mrf
 type Car (
@@ -153,56 +141,56 @@ type Car (
 )
 ```
 
-Folgende Typen und Attribute sind in Version 1 definiert:
+The following types and attributes are defined in version 1:
 
 #### String
 
-Eine Folge beliebiger Zeichen (Text).
+A sequence of arbitrary characters (text).
 
-| Attribut          | Beschreibung              |
-|-------------------|---------------------------|
-| required: Boolean | Definiert ein Pflichtfeld |
-| maxLength: Int    | Maximale Länge des Strings |
+| Attribute         | Description             |
+|-------------------|-------------------------|
+| required: Boolean | Marks the field as required |
+| maxLength: Int    | Maximum string length   |
 
 #### Int
 
-Ein positiver oder negativer ganzzahliger Wert.
+A positive or negative integer value.
 
-| Attribut          | Beschreibung              |
-|-------------------|---------------------------|
-| required: Boolean | Definiert ein Pflichtfeld |
-| minValue: Int     | Möglicher minimaler Wert  |
-| maxValue: Int     | Möglicher maximaler Wert  |
+| Attribute         | Description             |
+|-------------------|-------------------------|
+| required: Boolean | Marks the field as required |
+| minValue: Int     | Minimum allowed value   |
+| maxValue: Int     | Maximum allowed value   |
 
 #### Decimal
 
-Eine positive oder negative Dezimalzahl.
+A positive or negative decimal number.
 
-| Attribut            | Beschreibung              |
-|---------------------|---------------------------|
-| required: Boolean   | Definiert ein Pflichtfeld |
-| minValue: Decimal   | Möglicher minimaler Wert  |
-| maxValue: Decimal   | Möglicher maximaler Wert  |
+| Attribute           | Description             |
+|---------------------|-------------------------|
+| required: Boolean   | Marks the field as required |
+| minValue: Decimal   | Minimum allowed value   |
+| maxValue: Decimal   | Maximum allowed value   |
 
 #### Boolean
 
-Ein boolescher Wert: `1`/`true` oder `0`/`false`.
+A boolean value: `1`/`true` or `0`/`false`.
 
-| Attribut          | Beschreibung              |
-|-------------------|---------------------------|
-| required: Boolean | Definiert ein Pflichtfeld |
+| Attribute         | Description             |
+|-------------------|-------------------------|
+| required: Boolean | Marks the field as required |
 
 #### Any
 
-Ein Platzhalter für sämtliche Typen.
+A placeholder for any type.
 
-| Attribut          | Beschreibung              |
-|-------------------|---------------------------|
-| required: Boolean | Definiert ein Pflichtfeld |
+| Attribute         | Description             |
+|-------------------|-------------------------|
+| required: Boolean | Marks the field as required |
 
 #### DictionaryItem
 
-Ein erweiterter Listentyp mit Key und Value.
+An extended list type with a key and a value.
 
 ```mrf
 type DictionaryItem (
@@ -211,20 +199,30 @@ type DictionaryItem (
 )
 ```
 
-Beispiel — als Array verwendet (der `[]`-Marker steht dabei **auch auf der Zuweisungsseite**, damit der Wert ohne Typauflösung als Array erkennbar ist):
+Example — used as an array. Array literals are enclosed in square brackets `[ … ]`, which makes them distinguishable from inline records `( … )` without resolving the type (the `[]` marker on the field still documents the list type, but is no longer needed for disambiguation):
 
 ```mrf
 record (
-    myList[]:DictionaryItem = (
+    myList[]:DictionaryItem = [
         (key="A" value="Ananas")
         (key="B" value="Banana")
-    )
+    ]
 )
 ```
 
-### Externe Modeldefinitionen
+Elements may also be scalars or references, and empty lists are allowed:
 
-Mittels des Tokens `using "<uri>"` können externe Modeldefinitionen eingebunden werden, wobei `<uri>` eine relative Pfadangabe im aktuellen Protokoll oder eine absolute URI mit Protokollangabe ist:
+```mrf
+record palette (
+    tags   = [ "warm" "primary" ]     // scalars
+    colors = [ red green ]            // record references
+    empty  = [ ]
+)
+```
+
+### External model definitions
+
+Using the `using "<uri>"` token, external model definitions can be pulled in, where `<uri>` is either a relative path in the current protocol or an absolute URI with a protocol prefix:
 
 ```mrf
 using "./types.mrf"
@@ -232,40 +230,40 @@ using "file://home/alex/types.mrf"
 using "https://w3-isp.net/types.mrf"
 ```
 
-⚠️ Hinweis
+> ⚠️ **Note**
+>
+> - An interpreter is **NOT** required to use external definitions in order to process MRF files.
+> - If external definitions are unavailable or cannot be loaded, the interpreter **MUST** ignore them. (A `using "stdio"`, for instance, is grammatically valid and is treated as a named import that an interpreter may ignore.)
+> - MRF is specified such that it remains **valid** and **processable** even **without** external type definitions.
 
-- Ein Interpreter **MUSS** externe Definitionen nicht verwenden, um MRF-Dateien zu verarbeiten.
-- Falls externe Definitionen nicht verfügbar oder nicht ladbar sind, **MUSS** der Interpreter diese ignorieren. (Ein `using "stdio"` etwa ist grammatisch gültig und wird als benannter Import behandelt, den ein Interpreter ignorieren darf.)
-- Das Model-Record-Format ist so spezifiziert, dass es auch **ohne** externe Typdefinitionen **gültig** und **verarbeitbar** ist.
+### Comments
 
-### Kommentare
-
-Kommentare werden entweder mit `//` bis zum nächsten Zeilenvorschub oder mit `/* … */` über mehrere Zeilen gesetzt:
+Comments are written either with `//` up to the next line break, or with `/* … */` spanning multiple lines:
 
 ```mrf
-// Dies ist ein Kommentar
+// This is a comment
 record config: Configuration(
-    path = "./" // Kommentar in einer Zeile
+    path = "./" // inline comment
 
-    /* Kommentar über mehrere
-       Zeilen */
+    /* multi-line
+       comment */
 )
 ```
 
-## Kanonische Regeln (v1)
+## Canonical rules (v1)
 
-Drei Regeln halten die Grammatik **kontextfrei** — der Interpreter muss nie erst Typen auflösen, um korrekt weiterzulesen. Das ist Voraussetzung für die Zusage, dass MRF auch ohne externe Typdefinitionen verarbeitbar bleibt.
+Three rules keep the grammar **context-free** — an interpreter never has to resolve types first in order to keep reading correctly. This is a prerequisite for the guarantee that MRF stays processable without external type definitions.
 
-1. **Array-ness wird deklariert, nicht abgeleitet.** Ein Wert ist genau dann ein Array, wenn das Feld **an der Zuweisungsstelle** den `[]`-Marker trägt (`items[] = ( … )`); andernfalls ist er ein Einzelwert. Der Marker steht daher sowohl in der Typdefinition als auch im Record.
-2. **Benannte vs. anonyme Typen sind nach `:` eindeutig.** Folgt ein `TypeIdentifier`, ist es ein benannter Typ (Klammern enthalten Attribute `key=value`); folgt `(`, ist es ein anonymer Typ (Klammern enthalten Feld-Definitionen `key: Type`). Ein optionales zweites Klammernpaar nach einem anonymen Feld-Block trägt dessen Attribute.
-3. **Ein Bareword als Wert ist eine Record-Referenz.** `true`/`false` sind reserviert und werden als Boolean erkannt, sodass Referenzen nie mit ihnen kollidieren.
+1. **Array literals are square-bracket delimited.** A value is an array exactly when a `[` follows the `=` (`items = [ … ]`); a `(` instead starts an inline record. The parser therefore decides purely by the opening token, without resolving types. The `[]` marker on a field (`items[]: …`) still documents the list type, but is no longer required for disambiguation.
+2. **Named vs. anonymous types are unambiguous after `:`.** If a `TypeIdentifier` follows, it is a named type (parentheses hold attributes `key=value`); if `(` follows, it is an anonymous type (parentheses hold field definitions `key: Type`). An optional second pair of parentheses after an anonymous field block carries that type's attributes.
+3. **A bare word used as a value is a record reference.** `true`/`false` are reserved and recognised as booleans, so references never collide with them.
 
-**Offen für v1.1:** Ob `key=value`-Angaben am Typ eines Feldes neben Attributen (`required`, `minValue` …) auch **Default-Werte** ausdrücken dürfen, ist bewusst noch nicht festgelegt (Empfehlung: separates `default=`-Attribut, um Constraint und Wert zu trennen).
+**Open for v1.1:** whether `key=value` entries on a field's type may express **default values** in addition to attributes (`required`, `minValue`, …) is deliberately left unspecified (recommendation: a separate `default=` attribute, to keep constraint and value apart).
 
-## EBNF-Grammatik
+## EBNF Grammar
 
 ```ebnf
-(* ===== Struktur ===== *)
+(* ===== Structure ===== *)
 Program      ::= { Using | TypeDef | RecordDef } ;
 
 Using        ::= "using" StringLiteral ;
@@ -276,7 +274,7 @@ FieldDef     ::= Identifier [ ArrayMarker ] ":" TypeExpr ;
 
 TypeExpr     ::= NamedType | AnonType ;
 NamedType    ::= TypeIdentifier "(" { Param } ")" ;
-AnonType     ::= "(" { FieldDef } ")" [ "(" { Param } ")" ] ;   (* 2. Paar = Attribute *)
+AnonType     ::= "(" { FieldDef } ")" [ "(" { Param } ")" ] ;   (* 2nd pair = attributes *)
 
 Param        ::= Identifier "=" ScalarValue ;
 
@@ -284,9 +282,9 @@ RecordDef    ::= "record" [ Identifier ] [ ":" TypeIdentifier ] "(" { FieldAssig
 
 FieldAssign  ::= Identifier [ ArrayMarker ] [ ":" TypeIdentifier ] "=" Value ;
 
-(* Value ist ArrayValue g.d.w. das Feld ArrayMarker trägt, sonst SingleValue. *)
+(* A "[" after "=" starts an array literal, otherwise SingleValue. *)
 Value        ::= ArrayValue | SingleValue ;
-ArrayValue   ::= "(" { Element } ")" ;
+ArrayValue   ::= "[" { Element } "]" ;
 SingleValue  ::= Element ;
 Element      ::= ScalarValue | RecordRef | InlineRecord ;
 InlineRecord ::= "(" { FieldAssign } ")" ;
@@ -295,7 +293,7 @@ RecordRef    ::= Identifier ;
 ArrayMarker  ::= "[" "]" ;
 ScalarValue  ::= StringLiteral | NumberLiteral | BooleanLiteral ;
 
-(* ===== Lexik ===== *)
+(* ===== Lexical ===== *)
 Identifier     ::= Letter { Letter | Digit | "_" } ;
 TypeIdentifier ::= Letter { Letter | Digit | "_" } ;
 
@@ -310,15 +308,15 @@ BooleanLiteral ::= "true" | "false" ;
 Letter         ::= "A".."Z" | "a".."z" ;
 Digit          ::= "0".."9" ;
 
-(* Separatoren: Whitespace ODER "," zwischen Listenelementen — beides optional,
-   austauschbar, ohne Bedeutung.
-   Kommentare: "//" bis Zeilenende, oder "/* … */" (mehrzeilig).
-   Reservierte Wörter: using, type, record, true, false. *)
+(* Separators: whitespace OR "," between list items — both optional, interchangeable,
+   insignificant.
+   Comments: "//" to end of line, or "/* … */" (multi-line).
+   Reserved words: using, type, record, true, false. *)
 ```
 
-## Konformes Gesamtbeispiel
+## Complete conforming example
 
-Das folgende Beispiel nutzt alle v1-Konstrukte und wird vom Referenz-Parser akzeptiert:
+The following example exercises every v1 construct and is accepted by the reference parser:
 
 ```mrf
 using "https://w3-isp.net/mrf/types.mrf"
@@ -341,10 +339,11 @@ record jane: Person (
     active=false
 )
 
-record (                                    // anonymer Record
+record (                                    // anonymous record
     id="X1"
-    items[] = ( (key="A" value="Ananas") (key="B" value="Banana") )
-    customer = jane                          // Record-Referenz
+    items = [ (key="A" value="Ananas") (key="B" value="Banana") ]
+    customer = jane                          // record reference
 )
 ```
 
+A reference parser (recursive descent, a 1:1 image of the grammar above) together with a test suite covering every complete example in this document is provided as `mrf_parser.py` / `test_mrf.py`. The parser checks **syntax only**; evaluating the attribute constraints (`required`, `minValue`, `maxValue`, `maxLength`) is the job of a downstream validator.
