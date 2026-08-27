@@ -151,6 +151,60 @@ CASES["escaped_string"] = r'''
 record ( msg = "Escaped: \"Hello, world!\"" )
 '''
 
+# 11. v1.1 — typed inline records in a heterogeneous list.
+#     ":Type( ... )" in value position; anonymous elements stay legal alongside.
+CASES["typed_inline_records"] = r'''
+type TextH1 (
+    id:      String( required=true )
+    content: String( required=true maxLength=20 )
+)
+
+type CoreImage (
+    id:   String( required=true )
+    path: String( required=true )
+)
+
+type Box ( items[]: Any() )
+
+record seite (
+    blocks[]:Any = [
+        :TextH1( id="b1" content="Ueberschrift" )
+        :CoreImage( id="b2" path="/bild.jpg" )
+        ( id="b3" style="frei" )            // anonymous element stays valid
+    ]
+)
+'''
+
+# 11b. v1.1 — typed inline record as a single value and nested arbitrarily deep
+CASES["typed_inline_nested"] = r'''
+record page (
+    header = :TextH1( id="h" content="Titel" )
+    body   = :Box( items = [ :Box( items = [ :TextH1( id="deep" ) ] ) ] )
+)
+'''
+
+# --------------------------------------------------------------------------
+# Inputs that MUST be rejected. The grammar is only worth something if it
+# says no in the right places.
+# --------------------------------------------------------------------------
+
+REJECT = {}
+
+# A type name after ":" without its parentheses is not a value.
+REJECT["typed_inline_without_parens"] = r'''
+record ( x = :Foo "kein Klammerauf" )
+'''
+
+# ":" in value position needs a type identifier, not a literal.
+REJECT["typed_inline_without_typename"] = r'''
+record ( x = :( id="a" ) )
+'''
+
+# An array element still has to be a value.
+REJECT["colon_alone_in_array"] = r'''
+record ( xs = [ : ] )
+'''
+
 
 def main():
     ok = 0
@@ -162,6 +216,20 @@ def main():
         except SyntaxError as e:
             print(f"[FAIL] {name}: {e}")
     print(f"\n{ok}/{len(CASES)} examples accepted by the reconciled grammar.")
+
+    rej = 0
+    print()
+    for name, src in REJECT.items():
+        try:
+            parse(src)
+            print(f"[FAIL] {name}: accepted, but should have been rejected")
+        except SyntaxError as e:
+            print(f"[PASS] {name}: rejected ({e})")
+            rej += 1
+    print(f"\n{rej}/{len(REJECT)} malformed inputs correctly rejected.")
+
+    if ok != len(CASES) or rej != len(REJECT):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
