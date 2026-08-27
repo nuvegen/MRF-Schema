@@ -1,0 +1,65 @@
+// sample.mrf — a small but complete MRF v1 file.
+// Try:
+//   python3 ../scripts/mrf.py validate sample.mrf
+//   python3 ../scripts/mrf.py to-json  sample.mrf
+//   python3 ../scripts/mrf.py fmt      sample.mrf
+
+using "./types.mrf"          // optional import; ignored if unavailable
+
+type Person (
+    name:   String( required=true maxLength=60 )
+    age:    Int( minValue=0 maxValue=150 )
+    active: Boolean()
+)
+
+type Order (
+    id:        String( required=true )
+    items[]:   DictionaryItem()
+    customer:  Person()
+    shipping:  ( express: Boolean() note: String() ) ( required=true )  // anonymous type + attr
+)
+
+record jane:Person (
+    name="Jane Doe"
+    age=25
+    active=false
+)
+
+record order1:Order (
+    id="X1"
+    items = [
+        (key="A" value="Ananas")
+        (key="B" value="Banana")
+    ]
+    customer = jane                         // reference to the record above
+    shipping = ( express=true note="leave at door" )
+)
+
+record (                                     // anonymous record, empty list allowed
+    tags  = [ "warm" "primary" ]
+    extra = [ ]
+)
+
+// --- v1.1: typed inline records ------------------------------------------
+// Only these make a heterogeneous list checkable: each element carries its
+// own contract, so validate() knows which type to hold it against.
+
+type TextH1 (
+    id:      String( required=true )
+    content: String( required=true maxLength=60 )
+)
+
+type CoreImage (
+    id:   String( required=true )
+    path: String( required=true )
+    alt:  String()
+)
+
+record page (
+    blocks[]:Any = [
+        :TextH1( id="b1" content="Headline" )
+        :CoreImage( id="b2" path="/image.jpg" alt="a photo" )
+        ( id="b3" style="free" )             // anonymous element: valid, unchecked
+    ]
+    header = :TextH1( id="h" content="Title" )   // single value, not just arrays
+)

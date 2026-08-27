@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """
-Reference parser for the reconciled Model-Record-Format (MRF) v1 grammar.
+Reference parser for the reconciled Model-Record-Format (MRF) v1 / v1.1 grammar.
 Purpose: validate that the corrected EBNF accepts every example in the spec,
 including the ones that broke the original grammar (anonymous types, arrays,
-record references, the attribute-in-first-parens form).
+record references, the attribute-in-first-parens form) and the v1.1 addition
+of typed inline records (":Type( ... )" in value position).
 
 Not production code: no semantic/type checking, only structural (syntactic)
 acceptance. If .parse_program() returns without raising, the input conforms
 to the grammar.
+
+v1.1 (additive): an element in value position may carry a type name,
+written ":Type( ... )". Every v1 file keeps parsing unchanged, because a ":"
+at the start of a value was a syntax error in v1.
 """
 
 import re
@@ -230,14 +235,20 @@ class Parser:
             return ("array", elems)
         return self.element()
 
+    # -- Element ::= ScalarValue | RecordRef | InlineRecord | TypedInlineRecord --
+    #    TypedInlineRecord ::= ":" TypeId "(" { FieldAssign } ")"       (v1.1)
     def element(self):
+        if self.at("COLON"):                        # v1.1 typed inline record
+            self.eat("COLON")
+            rtype = self.eat("IDENT").val
+            if not self.at("LPAREN"):
+                raise SyntaxError(
+                    f"typed inline record ':{rtype}' expects '(', got "
+                    f"{self.cur.kind} {self.cur.val!r} at {self.cur.pos}"
+                )
+            return self.inline_record(rtype)
         if self.at("LPAREN"):                       # inline record ( ... )
-            self.eat("LPAREN")
-            assigns = []
-            while not self.at("RPAREN"):
-                assigns.append(self.fieldassign())
-            self.eat("RPAREN")
-            return ("inline_record", assigns)
+            return self.inline_record()
         if self.at("STRING", "NUMBER", "BOOL"):
             return self.scalar()
         if self.at("IDENT"):                        # bareword -> record ref
@@ -245,6 +256,16 @@ class Parser:
         raise SyntaxError(
             f"Expected value, got {self.cur.kind} {self.cur.val!r} at {self.cur.pos}"
         )
+
+    # -- InlineRecord ::= [ ":" TypeId ] "(" { FieldAssign } ")" -----------
+    #    The third tuple slot carries the v1.1 type name (None = anonymous).
+    def inline_record(self, rtype=None):
+        self.eat("LPAREN")
+        assigns = []
+        while not self.at("RPAREN"):
+            assigns.append(self.fieldassign())
+        self.eat("RPAREN")
+        return ("inline_record", assigns, rtype)
 
 
 def parse(src: str):

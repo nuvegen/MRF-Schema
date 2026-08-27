@@ -10,7 +10,7 @@ The world hardly needs yet another data format — we already have JSON, XML, TO
 
 The format deliberately takes its cues from **C**: it is clearly structured, typed, and designed to be both readable and easy to validate.
 
-> **Version:** v1 (consolidated) · **Status:** internally consistent, reference-validated
+> **Version:** v1.1 · **Status:** internally consistent, reference-validated
 >
 > **Changes since the initial draft:** attribute syntax unified (attributes live
 > **inside** the type's parentheses); anonymous types, arrays and record references are
@@ -24,6 +24,13 @@ The format deliberately takes its cues from **C**: it is clearly structured, typ
 > **Change in this revision:** array/list values are now written with square brackets
 > `[ … ]` (instead of `( … )`), making them clearly distinct from inline records
 > `( … )`.
+>
+> **New in v1.1 — typed inline records:** an element in value position may carry a
+> type name, written `:Type( … )` (see [Typed inline records](#typed-inline-records-v11)).
+> The extension is **purely additive**: a v1.1 parser reads every v1 file unchanged,
+> because a `:` at the start of a value was a syntax error in v1. A v1 parser, in
+> turn, rejects `:Type( … )` with a syntax error. Nothing was removed and no existing
+> rule was reinterpreted.
 
 ## Model Record Definition
 
@@ -220,6 +227,57 @@ record palette (
 )
 ```
 
+### Typed inline records (v1.1)
+
+In v1 an inline record is anonymous: `( key="A" value="Ananas" )`. Its content can
+only be checked when the **surrounding field** declares a named type. For
+heterogeneous lists — a field of type `Any()` holding elements of different shapes —
+that is impossible in principle: only the element itself knows which contract applies.
+
+Since v1.1 an element may therefore carry its own type name:
+
+```mrf
+type TextH1 (
+    id:      String( required=true )
+    content: String( required=true maxLength=20 )
+)
+
+type CoreImage (
+    id:   String( required=true )
+    path: String( required=true )
+)
+
+record page (
+    blocks[]:Any = [
+        :TextH1( id="b1" content="Headline" )
+        :CoreImage( id="b2" path="/image.jpg" )
+        ( id="b3" style="free" )              // anonymous elements stay valid
+    ]
+)
+```
+
+The type name binds the element to that type, and a validator checks it against that
+type — at any nesting depth, and in `Any()` fields as well. The form works in single
+values too (`header = :TextH1( … )`), not just inside arrays.
+
+> **Validation rules**
+>
+> - A typed inline record is always checked against **its own** type.
+> - If the field declares a different named type than the value carries, that is an
+>   error.
+> - Anonymous inline records stay valid and stay **unchecked** — typing is optional.
+> - Unknown types are skipped silently, exactly as in v1 (see the note under
+>   [External model definitions](#external-model-definitions)); a strict mode may
+>   report them.
+> - There is no inheritance: a shared field such as `id` has to be declared by every
+>   type itself. Fields that do not occur in the type remain permitted — checking
+>   them is up to the consuming application.
+
+In a JSON mapping the type name belongs to the **payload**, not to the metadata: it
+is the discriminator that tells the elements of a heterogeneous list apart. A mapping
+that drops it is lossy. The recommended representation is a `_type` key inside the
+object, from which `:Type( … )` can be reconstructed.
+
 ### External model definitions
 
 Using the `using "<uri>"` token, external model definitions can be pulled in, where `<uri>` is either a relative path in the current protocol or an absolute URI with a protocol prefix:
@@ -235,6 +293,11 @@ using "https://w3-isp.net/types.mrf"
 > - An interpreter is **NOT** required to use external definitions in order to process MRF files.
 > - If external definitions are unavailable or cannot be loaded, the interpreter **MUST** ignore them. (A `using "stdio"`, for instance, is grammatically valid and is treated as a named import that an interpreter may ignore.)
 > - MRF is specified such that it remains **valid** and **processable** even **without** external type definitions.
+> - **Pitfall for validators:** because `using` is not resolved, types defined in
+>   another file count as unknown and are skipped **silently**. A file full of typed
+>   blocks (`:TextH1( … )`) can therefore wrongly report `OK`. Anyone validating
+>   across file boundaries has to merge the type definitions into one document, or
+>   run a strict mode that makes unknown types visible.
 
 ### Comments
 
@@ -250,15 +313,16 @@ record config: Configuration(
 )
 ```
 
-## Canonical rules (v1)
+## Canonical rules
 
-Three rules keep the grammar **context-free** — an interpreter never has to resolve types first in order to keep reading correctly. This is a prerequisite for the guarantee that MRF stays processable without external type definitions.
+Four rules keep the grammar **context-free** — an interpreter never has to resolve types first in order to keep reading correctly. This is a prerequisite for the guarantee that MRF stays processable without external type definitions.
 
 1. **Array literals are square-bracket delimited.** A value is an array exactly when a `[` follows the `=` (`items = [ … ]`); a `(` instead starts an inline record. The parser therefore decides purely by the opening token, without resolving types. The `[]` marker on a field (`items[]: …`) still documents the list type, but is no longer required for disambiguation.
 2. **Named vs. anonymous types are unambiguous after `:`.** If a `TypeIdentifier` follows, it is a named type (parentheses hold attributes `key=value`); if `(` follows, it is an anonymous type (parentheses hold field definitions `key: Type`). An optional second pair of parentheses after an anonymous field block carries that type's attributes.
 3. **A bare word used as a value is a record reference.** `true`/`false` are reserved and recognised as booleans, so references never collide with them.
+4. **A `:` at the start of a value introduces a typed inline record** *(v1.1)*. `blocks = [ :TextH1( … ) ]` binds the element to type `TextH1`, and a validator checks it against that type. This does not collide with rule 2: there the `:` stands **after a field name**, here **before a value**. A single lookahead token decides — no ambiguity, no backtracking.
 
-**Open for v1.1:** whether `key=value` entries on a field's type may express **default values** in addition to attributes (`required`, `minValue`, …) is deliberately left unspecified (recommendation: a separate `default=` attribute, to keep constraint and value apart).
+**Open for a later version:** whether `key=value` entries on a field's type may express **default values** in addition to attributes (`required`, `minValue`, …) is deliberately left unspecified (recommendation: a separate `default=` attribute, to keep constraint and value apart).
 
 ## EBNF Grammar
 
@@ -286,8 +350,9 @@ FieldAssign  ::= Identifier [ ArrayMarker ] [ ":" TypeIdentifier ] "=" Value ;
 Value        ::= ArrayValue | SingleValue ;
 ArrayValue   ::= "[" { Element } "]" ;
 SingleValue  ::= Element ;
-Element      ::= ScalarValue | RecordRef | InlineRecord ;
+Element      ::= ScalarValue | RecordRef | InlineRecord | TypedInlineRecord ;
 InlineRecord ::= "(" { FieldAssign } ")" ;
+TypedInlineRecord ::= ":" TypeIdentifier "(" { FieldAssign } ")" ;   (* v1.1 *)
 RecordRef    ::= Identifier ;
 
 ArrayMarker  ::= "[" "]" ;
@@ -316,7 +381,7 @@ Digit          ::= "0".."9" ;
 
 ## Complete conforming example
 
-The following example exercises every v1 construct and is accepted by the reference parser:
+The following example exercises every v1 and v1.1 construct and is accepted by the reference parser:
 
 ```mrf
 using "https://w3-isp.net/mrf/types.mrf"
@@ -331,6 +396,17 @@ type Order (
     id:       String( required=true )
     items[]:  DictionaryItem()
     customer: Person()
+    blocks[]: Any()
+)
+
+type TextH1 (
+    id:      String( required=true )
+    content: String( required=true maxLength=20 )
+)
+
+type CoreImage (
+    id:   String( required=true )
+    path: String( required=true )
 )
 
 record jane: Person (
@@ -343,7 +419,12 @@ record (                                    // anonymous record
     id="X1"
     items = [ (key="A" value="Ananas") (key="B" value="Banana") ]
     customer = jane                          // record reference
+    blocks = [                               // heterogeneous list (v1.1)
+        :TextH1( id="b1" content="Headline" )
+        :CoreImage( id="b2" path="/image.jpg" )
+        ( id="b3" style="free" )             // anonymous element, unchecked
+    ]
 )
 ```
 
-A reference parser (recursive descent, a 1:1 image of the grammar above) together with a test suite covering every complete example in this document is provided as `mrf_parser.py` / `test_mrf.py`. The parser checks **syntax only**; evaluating the attribute constraints (`required`, `minValue`, `maxValue`, `maxLength`) is the job of a downstream validator.
+A reference parser (recursive descent, a 1:1 image of the grammar above) together with a test suite covering every complete example in this document is provided as `mrf_parser.py` / `test_mrf.py`. The test suite additionally contains inputs that **must** be rejected (e.g. `:Foo` without parentheses). The parser checks **syntax only**; evaluating the attribute constraints (`required`, `minValue`, `maxValue`, `maxLength`) is the job of a downstream validator.
