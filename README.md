@@ -72,3 +72,7 @@ Ensure that Python 3 is installed:
 ```bash
 sudo apt update
 sudo apt install python3
+
+---
+
+<sub>[Contact & legal notice](https://nuvegen.github.io/MRF-Schema/impressum.html) &middot; [Privacy policy](https://nuvegen.github.io/MRF-Schema/datenschutz.html)</sub>
