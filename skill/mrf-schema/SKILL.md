@@ -11,7 +11,9 @@ description: >-
   and its schema constraints (required / minValue / maxValue / maxLength), or
   convert between MRF, JSON, and YAML. Also use to hand-author correct MRF (applying the
   four canonical rules) or to generate .mrf test fixtures. Prefer the bundled
-  parser over eyeballing syntax — it is a 1:1 image of the grammar.
+  parser over eyeballing syntax — it is a 1:1 image of the grammar. A read-only
+  JavaScript twin ships alongside it for MRF that has to be consumed in the
+  browser or in Node.
 ---
 
 # MRF — Model-Record-Format v1 / v1.1
@@ -137,6 +139,39 @@ list of violations if invalid; `--strict` also flags unknown/unresolved types
 (by default unknown or imported-via-`using` types are skipped, because the spec
 guarantees a file stays valid even when external definitions are unavailable).
 YAML sub-commands need `pyyaml`; everything else is pure stdlib.
+
+## Shipping MRF to JavaScript (`scripts/mrf.js`)
+
+`scripts/mrf.js` is a read-only JS twin of the parser: same EBNF, same data
+mapping, no dependencies. It runs in Node (`require`, or `import mrf from
+"./mrf.js"`) and in the browser (`<script>` -> global `MRF`), and it has its own
+CLI (`parse | types | records | to-json | validate`). It **parses only** — no
+writer, no `fmt`, no `from-json`.
+
+**Rule of thumb: for your own parsing, validating and converting, always use
+`mrf.py`.** Reach for `mrf.js` only when the *deliverable itself* runs in
+JavaScript — an HTML preview that reads `.mrf` at runtime, a browser tool, a Node
+script for the user. Then copy or inline that file; never hand-write a second
+parser.
+
+```js
+const mrf = require("./mrf.js");        // browser: global MRF
+const doc = mrf.parse(text);
+
+doc.typesJSON();      // schema: { Type: { fields: { f: {kind,type,isList,required,attributes} } } }
+doc.recordsJSON();    // data:   [ { name, type, data } ]   (refs resolved; {resolveRefs:false} keeps $ref)
+doc.toData();         // identical output to mrf.py's to_data / `to-json`
+mrf.validate(doc);    // same constraint messages as mrf.py
+```
+
+Two implementations of one grammar drift. After touching either, check them
+against each other — the outputs must be byte-identical:
+
+```bash
+python3 scripts/mrf.py to-json examples/sample.mrf > /tmp/py.json
+node     scripts/mrf.js to-json examples/sample.mrf > /tmp/js.json
+diff /tmp/py.json /tmp/js.json
+```
 
 ## Authoring workflow
 
